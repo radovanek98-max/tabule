@@ -66,3 +66,48 @@
         <div class="karta-hodnota">Plno (0)</div>
     </div>
 </div>
+
+</head>
+<body>
+
+    <h1>Data z Golemio API</h1>
+    <div id="vystup" class="data-box">Načítám data...</div>
+
+    <script>
+        // Nastavení URL adresy (např. data o parkovištích) a vašeho API klíče
+        const url = 'https://api.golemio.cz';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4'; // Sem vložte svůj klíč
+
+        // Funkce pro načtení dat
+        async function nactiData() {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        // Zde se posílá API klíč v požadované hlavičce
+                        'X-Access-Token': apiKey,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Chyba při komunikaci: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Zobrazení dat v HTML (převedeno na text pro ukázku)
+                document.getElementById('vystup').innerHTML = 
+                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            } catch (error) {
+                document.getElementById('vystup').innerText = `Chyba: ${error.message}`;
+            }
+        }
+
+        // Spuštění funkce po načtení stránky
+        nactiData();
+    </script>
+
+</body>
+</html>
