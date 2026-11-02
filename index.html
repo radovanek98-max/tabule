@@ -122,23 +122,24 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Přímé stahování dat z api.golemio.cz...</td>
+                    <td colspan="6" class="status-msg">Načítám odjezdy přímo ze serverů Golemio...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        // Váš nový platný klíč
+        // Váš platný API klíč
         const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4";
 
         // Přesně definovaná základní adresa
         const BASE_URL = 'https://golemio.cz';
 
-        // Konkrétní parametry pro odjezdy z Hlavního nádraží
-        const endpoint = '?names=Praha%20hl.n.&limit=15';
+        // Klíčová změna: Předáváme token metodou URL parametrů povolených pro Open Data (přes api_key a client_token zároveň)
+        // Tímto zápisem neposíláme rizikové HTTP hlavičky a obcházíme CORS omezení prohlížeče
+        const endpoint = `?names=Praha%20hl.n.&limit=15&api_key=${GOLEMIO_API_KEY}&client_token=${GOLEMIO_API_KEY}`;
 
-        // Spojení adresy dohromady na přímý odkaz
+        // Výsledné spojení adresy
         const url = BASE_URL + endpoint;
 
         // Živé digitální hodiny
@@ -156,14 +157,8 @@
             const tbody = document.getElementById('board-body');
 
             try {
-                // Čisté stahování napřímo z Golemia bez jakýchkoliv prostředníků
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'X-Access-Token': GOLEMIO_API_KEY,
-                        'Accept': 'application/json'
-                    }
-                });
+                // Přímé stažení dat z Golemia bez jakékoliv proxy
+                const response = await fetch(url, { method: 'GET' });
                 
                 if (!response.ok) throw new Error("Chyba API serveru: " + response.status);
                 
@@ -171,7 +166,7 @@
                 tbody.innerHTML = "";
 
                 if (!data.departures || data.departures.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné reálné vlaky.</td></tr>`;
                     return;
                 }
 
@@ -208,13 +203,13 @@
 
             } catch (error) {
                 console.error(error);
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Prohlížeč zablokoval dotaz (CORS restrikce). Povolte doménu vašeho webu v administraci Golemia (api.golemio.cz/api-keys).</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba přímého ověření klíče přes URL parametry. Golemio servery odmítly přímý přístup bez HTTP hlavičky.</td></tr>`;
             }
         }
 
         window.onload = function() {
             fetchRealTrainData();
-            setInterval(fetchRealTrainData, 30000); // Pravidelná přímá aktualizace každých 30 vteřin
+            setInterval(fetchRealTrainData, 30000); // Aktualizace každých 30 vteřin
         };
     </script>
 </body>
