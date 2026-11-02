@@ -7,48 +7,62 @@
     <style>
         body { font-family: sans-serif; margin: 20px; }
         .data-box { background: #f0f0f0; padding: 15px; border-radius: 5px; }
-    </style>
-</head>
-<body>
+    <style>
+    /* Moderní CSS reset a písmo */
+    body {
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f4f6f9;
+        color: #333;
+        margin: 0;
+        padding: 20px;
+    }
+    
+    h1 {
+        color: #1e293b;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+    }
 
-    <h1>Data z Golemio API</h1>
-    <div id="vystup" class="data-box">Načítám data...</div>
+    /* Kontejner pro karty (grid) */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
 
-    <script>
-        // Nastavení URL adresy (např. data o parkovištích) a vašeho API klíče
-        const url = 'https://api.golemio.cz';
-        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4'; // Sem vložte svůj klíč
+    /* Styl samotné karty */
+    .karta {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border-left: 5px solid #3b82f6; /* Modrý akcent */
+    }
 
-        // Funkce pro načtení dat
-        async function nactiData() {
-            try {
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        // Zde se posílá API klíč v požadované hlavičce
-                        'X-Access-Token': apiKey,
-                        'Accept': 'application/json'
-                    }
-                });
+    .karta-nazev {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #1e293b;
+        margin-bottom: 10px;
+    }
 
-                if (!response.ok) {
-                    throw new Error(`Chyba při komunikaci: ${response.status}`);
-                }
+    .karta-hodnota {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #2563eb;
+    }
+</style>
 
-                const data = await response.json();
-                
-                // Zobrazení dat v HTML (převedeno na text pro ukázku)
-                document.getElementById('vystup').innerHTML = 
-                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+<h1>Přehled města (Golemio API)</h1>
 
-            } catch (error) {
-                document.getElementById('vystup').innerText = `Chyba: ${error.message}`;
-            }
-        }
-
-        // Spuštění funkce po načtení stránky
-        nactiData();
-    </script>
-
-</body>
-</html>
+<div class="dashboard-grid">
+    <div class="karta">
+        <div class="karta-nazev">Parkoviště Černý Most</div>
+        <div class="karta-hodnota">42 volných míst</div>
+    </div>
+    <div class="karta" style="border-left-color: #ef4444;"> <!-- Červená, když je plno -->
+        <div class="karta-nazev">Parkoviště Václavské nám.</div>
+        <div class="karta-hodnota">Plno (0)</div>
+    </div>
+</div>
