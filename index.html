@@ -145,7 +145,7 @@
 
         async function fetchRealTrainData() {
             const tbody = document.getElementById('board-body');
-            const targetUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=14`;
+            const targetUrl = `https://api.golemio.cz{STATION_ID}&mode=trains&limit=14`;
             
             // Otevřená proxy brána odstraňující CORS restrikce pro bezpečné odeslání hlavičky X-Access-Token
             const proxyUrl = `https://codetabs.com{encodeURIComponent(targetUrl)}`;
