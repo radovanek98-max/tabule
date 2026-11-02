@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odjezdová tabule SŽDC (2018)</title>
+    <title>Reálná odjezdová tabule SŽDC (2018)</title>
     <style>
-        /* Přesná barevná identita SŽDC z roku 2018 */
         :root {
             --szdc-dark-blue: #0b1c33;
             --szdc-light-blue: #1c355e;
@@ -106,7 +105,7 @@
 
     <div class="board-container">
         <div class="board-header">
-            <div class="station-name" id="board-station-title">Praha hlavní nádraží</div>
+            <div class="station-name">Praha hlavní nádraží</div>
             <div class="current-time" id="live-clock">00:00:00</div>
         </div>
 
@@ -123,14 +122,17 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Připojování k informačnímu systému ČD...</td>
+                    <td colspan="6" class="status-msg">Navazuji spojení se servery železnice...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        // Živé digitální hodiny
+        // Aktualizovaný a platný klíč implementovaný do rozhraní
+        const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4"; 
+        const STATION_ID = "U454Z1P"; // Kód stanice Praha hl.n.
+
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -143,107 +145,71 @@
 
         async function fetchRealTrainData() {
             const tbody = document.getElementById('board-body');
+            const targetUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=14`;
             
+            // Otevřená proxy brána odstraňující CORS restrikce pro bezpečné odeslání hlavičky X-Access-Token
+            const proxyUrl = `https://codetabs.com{encodeURIComponent(targetUrl)}`;
+
             try {
-                // Používáme stabilní, plně otevřený mezinárodní uzel, který GitHub Pages nikdy neblokuje
-                const url = "https://allorigins.win" + encodeURIComponent("https://cd.cz");
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("Chyba přenosu");
+                const response = await fetch(proxyUrl, {
+                    headers: {
+                        'X-Access-Token': GOLEMIO_API_KEY,
+                        'Accept': 'application/json'
+                    }
+                });
                 
-                const wrapper = await response.json();
+                if (!response.ok) throw new Error("Chyba API: " + response.status);
                 
-                // Vytvoříme virtuální dokument pro přečtení HTML struktury přímo z webu ČD
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(wrapper.contents, 'text/html');
-                
-                // Vyhledáme řádky s vlaky v tabulce online tabule ČD
-                const rows = doc.querySelectorAll('table.station-board tbody tr');
-                
+                const data = await response.json();
                 tbody.innerHTML = "";
 
-                if (!rows || rows.length === 0) {
-                    // Záložní zobrazení, pokud by cílový server měl momentální výpadek
-                    generateFallbackData();
+                if (!data.departures || data.departures.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
                     return;
                 }
 
-                let count = 0;
-                rows.forEach(row => {
-                    if (count >= 12) return; // Zobrazíme maximálně 12 spojů
+                data.departures.forEach(train => {
+                    const schedTime = new Date(train.departure_timestamp.scheduled);
+                    const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
                     
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 5) {
-                        const time = cells[0].textContent.trim();
-                        const trainKindNum = cells[1].textContent.trim().split(" ");
-                        const kind = trainKindNum[0] || "Vlak";
-                        const number = trainKindNum[1] || "";
-                        const destination = cells[2].textContent.trim();
-                        const track = cells[3].textContent.trim() || "—";
-                        const delayText = cells[4].textContent.trim();
-                        
-                        let noteCell = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
-                        if (delayText.includes("min")) {
-                            noteCell = `<span class="blink">${delayText}</span>`;
-                        } else if (delayText.includes("přistaven")) {
-                            noteCell = `<span style="color:var(--szdc-yellow);">${delayText}</span>`;
-                        } else if (delayText.includes("zrušen")) {
-                            noteCell = `<span style="color:red; font-weight:bold;">ZRUŠENO</span>`;
-                        }
-
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td class="col-time">${time}</td>
-                            <td class="col-kind">${kind}</td>
-                            <td class="col-number">${number}</td>
-                            <td class="col-destination">${destination}</td>
-                            <td class="col-track">${track}</td>
-                            <td class="col-delay">${noteCell}</td>
-                        `;
-                        tbody.appendChild(tr);
-                        count++;
+                    const trainType = train.route.short_name || "Vlak";
+                    const trainNum = train.trip.number || "";
+                    const destination = train.trip.headsign || "Směr cíl";
+                    const track = train.stop.platform_code || "—";
+                    
+                    const delayMinutes = train.delay.minutes || 0;
+                    
+                    let noteCell = "";
+                    if (train.trip.is_canceled) {
+                        noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
+                    } else if (delayMinutes > 0) {
+                        noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
+                    } else {
+                        noteCell = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
                     }
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="col-time">${timeString}</td>
+                        <td class="col-kind">${trainType}</td>
+                        <td class="col-number">${trainNum}</td>
+                        <td class="col-destination">${destination}</td>
+                        <td class="col-track">${track}</td>
+                        <td class="col-delay">${noteCell}</td>
+                    `;
+                    tbody.appendChild(row);
                 });
 
             } catch (error) {
                 console.error("Chyba:", error);
-                generateFallbackData();
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba přenosu dat. Aktualizujte stránku nebo zkontrolujte připojení.</td></tr>`;
             }
         }
 
-        // Tvorba inteligentních dat, pokud síť selže (tabule nesmí zůstat prázdná)
-        function generateFallbackData() {
-            const tbody = document.getElementById('board-body');
-            tbody.innerHTML = "";
-            const sampleTrains = [
-                { time: "10", kind: "rj", num: "257", dest: "Brno hl.n.", track: "3b", msg: "Vlak přistaven" },
-                { time: "18", kind: "EC", num: "174", dest: "Hamburg-Altona", track: "6", msg: "Zpoždění 10 min" },
-                { time: "25", kind: "Os", num: "9116", dest: "Milovice", track: "7S", msg: "Pravidelný odjezd" },
-                { time: "32", kind: "Os", num: "2548", dest: "Benešov u Prahy", track: "1b", msg: "Pravivelný odjezd" },
-                { time: "40", kind: "R", num: "762", dest: "Plzeň hl.n.", track: "4b", msg: "Zpoždění 5 min" }
-            ];
-
-            const now = new Date();
-            sampleTrains.forEach(t => {
-                const schedTime = new Date(now.getTime() + parseInt(t.time) * 60000);
-                const timeStr = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
-                
-                let delayHtml = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
-                if (t.msg.includes("Zpoždění")) delayHtml = `<span class="blink">${t.msg}</span>`;
-                if (t.msg.includes("přistaven")) delayHtml = `<span style="color:var(--szdc-yellow);">${t.msg}</span>`;
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="col-time">${timeStr}</td>
-                    <td class="col-kind">${t.kind}</td>
-                    <td class="col-number">${t.num}</td>
-                    <td class="col-destination">${t.dest}</td>
-                    <td class="col-track">${t.track}</td>
-                    <td class="col-delay">${delayHtml}</td>
-`;
-tbody.appendChild(row);
-});
-}
-window.onload = function() {
-fetchRealTrainData();
-setInterval(fetchRealTrainData, 30000); // Aktualizace každých 30 sekund
-};
+        window.onload = function() {
+            fetchRealTrainData();
+            setInterval(fetchRealTrainData, 30000); 
+        };
+    </script>
+</body>
+</html>
