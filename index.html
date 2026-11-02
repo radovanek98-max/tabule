@@ -146,9 +146,17 @@
             const tbody = document.getElementById('board-body');
 
             try {
-                // OPRAVENO: Předávání tokenu přímo v URL adrese parametrem access_token, což uvolňuje CORS politiku pro GitHub Pages
-                const departuresUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=12&access_token=${GOLEMIO_API_KEY}`;
-                const departuresResponse = await fetch(departuresUrl);
+                const departuresUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=12`;
+                
+                // Používáme stabilní CORS proxy určenou pro frontend aplikace, která propustí vlastní hlavičky
+                const proxyUrl = `https://codetabs.com{encodeURIComponent(departuresUrl)}`;
+                
+                const departuresResponse = await fetch(proxyUrl, {
+                    headers: { 
+                        'X-Access-Token': GOLEMIO_API_KEY,
+                        'Accept': 'application/json'
+                    }
+                });
                 
                 if (!departuresResponse.ok) {
                     throw new Error("HTTP chyba: " + departuresResponse.status);
