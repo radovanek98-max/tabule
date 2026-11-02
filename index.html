@@ -3,111 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ukázka Golemio API</title>
+    <title>Odjezdová tabule - Praha hl.n.</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        .data-box { background: #f0f0f0; padding: 15px; border-radius: 5px; }
-    <style>
-    /* Moderní CSS reset a písmo */
-    body {
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        background-color: #f4f6f9;
-        color: #333;
-        margin: 0;
-        padding: 20px;
-    }
-    
-    h1 {
-        color: #1e293b;
-        border-bottom: 2px solid #e2e8f0;
-        padding-bottom: 10px;
-    }
+        /* Stylizace do vzhledu reálné nádražní tabule */
+        body {
+            background-color: #0c0c0c;
+            color: #ff9900; /* Typická oranžová barva informačních panelů */
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+        }
 
-    /* Kontejner pro karty (grid) */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-    }
+        .board-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            border: 3px solid #333;
+            background-color: #111;
+            padding: 10px;
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.2);
+        }
 
-    /* Styl samotné karty */
-    .karta {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        border-left: 5px solid #3b82f6; /* Modrý akcent */
-    }
+        h1 {
+            text-align: center;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
 
-    .karta-nazev {
-        font-size: 1.1rem;
-        font-weight: bold;
-        color: #1e293b;
-        margin-bottom: 10px;
-    }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
 
-    .karta-hodnota {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #2563eb;
-    }
-</style>
+        th {
+            color: #888;
+            font-size: 14px;
+            text-transform: uppercase;
+            padding: 10px;
+            border-bottom: 2px solid #333;
+        }
 
-<h1>Přehled města (Golemio API)</h1>
+        td {
+            padding: 12px 10px;
+            font-size: 18px;
+            font-weight: bold;
+            border-bottom: 1px solid #222;
+        }
 
-<div class="dashboard-grid">
-    <div class="karta">
-        <div class="karta-nazev">Parkoviště Černý Most</div>
-        <div class="karta-hodnota">42 volných míst</div>
-    </div>
-    <div class="karta" style="border-left-color: #ef4444;"> <!-- Červená, když je plno -->
-        <div class="karta-nazev">Parkoviště Václavské nám.</div>
-        <div class="karta-hodnota">Plno (0)</div>
-    </div>
-</div>
+        /* Barevné rozlišení důležitých prvků */
+        .time { color: #ffbc42; }
+        .line { 
+            color: #fff; 
+            background-color: #333; 
+            padding: 2px 6px; 
+            border-radius: 3px;
+        }
+        .delay { color: #ff3333; font-size: 14px; margin-left: 5px; }
+        .platform { color: #00ffcc; text-align: center; }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 20px;
+            animation: blink 1.5s infinite;
+        }
 
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+    </style>
 </head>
 <body>
 
-    <h1>Data z Golemio API</h1>
-    <div id="vystup" class="data-box">Načítám data...</div>
+    <div class="board-container">
+        <h1>Praha hlavní nádraží — Odjezdy</h1>
+        
+        <table id="departure-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">Čas</th>
+                    <th style="width: 12%;">Linka / Vlak</th>
+                    <th style="width: 50%;">Směr (Cíl)</th>
+                    <th style="width: 18%;">Poznámka</th>
+                    <th style="width: 10%; text-align: center;">Nást.</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- Data se doplní dynamicky pomocí JS -->
+            </tbody>
+        </table>
+        
+        <div id="loading-msg" class="loading">NAČÍTÁM AKTUÁLNÍ ODJEZDY...</div>
+    </div>
 
     <script>
-        // Nastavení URL adresy (např. data o parkovištích) a vašeho API klíče
-        const url = 'https://api.golemio.cz';
-        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4'; // Sem vložte svůj klíč
+        // Konfigurace API Golemio
+        // Používáme parametr names pro vyhledání uzlu "Praha hl.n." a limit 15 spojů
+        const url = 'https://api.golemio.cz/v2/pid/departureboards';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4';
 
-        // Funkce pro načtení dat
-        async function nactiData() {
+        async function nactiOdjezdy() {
             try {
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        // Zde se posílá API klíč v požadované hlavičce
                         'X-Access-Token': apiKey,
                         'Accept': 'application/json'
                     }
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Chyba při komunikaci: ${response.status}`);
+                    throw new Error(`Chyba serveru: ${response.status}`);
                 }
 
                 const data = await response.json();
-                
-                // Zobrazení dat v HTML (převedeno na text pro ukázku)
-                document.getElementById('vystup').innerHTML = 
-                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                vykresliTabuli(data.departures);
 
             } catch (error) {
-                document.getElementById('vystup').innerText = `Chyba: ${error.message}`;
+                document.getElementById('loading-msg').innerText = `CHYBA NAČÍTÁNÍ: ${error.message}`;
+                document.getElementById('loading-msg').style.color = '#ff3333';
             }
         }
 
-        // Spuštění funkce po načtení stránky
-        nactiData();
-    </script>
+        function vykresliTabuli(spoje) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = ''; // Vyčištění tabulky
 
+            if (!spoje || spoje.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Žádné aktuální odjezdy nebyly nalezeny.</td></tr>';
+            } else {
+                spoje.forEach(spoj => {
+                    // 1. Zpracování času odjezdu (oříznutí na HH:MM)
+                    const planyCas = spoj.departure_timestamp.scheduled;
+                    const d = new Date(planyCas);
+                    const formatovanyCas = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+                    // 2. Výpočet zpoždění
+                    let zpozdeniText = '';
+                    const zpozdeniMinuty = spoj.delay.minutes;
+                    if (zpozdeniMinuty > 0) {
+                        zpozdeniText = `<span class="delay">+${zpozdeniMinuty} min</span>`;
+                    } else if (zpozdeniMinuty === 0) {
+                        zpozdeniText = '<span>včas</span>';
+                    }
+
+                    // 3. Číslo linky / Vlaku
+                    const nazevLinky = spoj.route.short_name || spoj.trip.headsign || 'Vlak';
+                    
+                    // 4. Nástupiště (pokud je dostupné)
+                    const nastupiste = spoj.stop.platform_code || '-';
+
+                    // Vytvoření řádku tabulky
+                    const row = `
+                        <tr>
+                            <td class="time">${formatovanyCas}</td>
+                            <td><span class="line">${nazevLinky}</span></td>
+                            <td>${spoj.trip.headsign}</td>
+                            <td>${zpozdeniText}</td>
+                            <td class="platform">${nastupiste}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            }
+
+            // Skrytí načítací hlášky a zobrazení hotové tabulky
+            document.getElementById('loading-msg').style.display = 'none';
+            document.getElementById('departure-table').style.display = 'table';
+        }
+
+        // Spuštění po načtení stránky a automatická aktualizace každých 30 sekund
+        nactiOdjezdy();
+        setInterval(nactiOdjezdy, 30000);
+    </script>
 </body>
 </html>
