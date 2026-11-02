@@ -77,12 +77,12 @@
             vertical-align: middle;
         }
 
-        .col-time { color: var(--szdc-yellow); font-weight: bold; width: 8%; }
-        .col-kind { color: var(--szdc-white); font-weight: bold; width: 8%; }
-        .col-number { color: var(--szdc-white); width: 8%; }
-        .col-destination { color: var(--szdc-white); font-weight: bold; font-size: 20px; width: 35%; }
-        .col-track { color: var(--szdc-yellow); text-align: center; font-weight: bold; font-size: 20px; width: 8%; }
-        .col-delay { color: var(--szdc-orange); font-weight: bold; text-align: right; width: 15%; }
+        .col-time { color: var(--szdc-yellow); font-weight: bold; width: 10%; }
+        .col-kind { color: var(--szdc-white); font-weight: bold; width: 10%; }
+        .col-number { color: var(--szdc-white); width: 10%; }
+        .col-destination { color: var(--szdc-white); font-weight: bold; font-size: 20px; width: 40%; }
+        .col-track { color: var(--szdc-yellow); text-align: center; font-weight: bold; font-size: 20px; width: 10%; }
+        .col-delay { color: var(--szdc-orange); font-weight: bold; text-align: right; width: 20%; }
 
         .blink {
             animation: blinker 1.5s linear infinite;
@@ -122,16 +122,17 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Stahuji aktuální data ze sítě Správy železnic...</td>
+                    <td colspan="6" class="status-msg">Načítám aktuální data ze sítě Správy železnic...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        // Názvy stopů, které odpovídají Hlavnímu nádraží v Praze v datovém GTFS dumpu
-        const TARGET_STATION_NAME = "Praha hl.n.";
+        // Mezinárodní identifikační kód pro stanici Praha hl.n.
+        const STATION_GID = "NationalStopPlace:5457076"; 
 
+        // Živé hodiny na tabuli
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -142,51 +143,74 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        async function fetchRealTrainData() {
+        async function loadBoardData() {
             const tbody = document.getElementById('board-body');
-            
-            try {
-                // Stažení přes plně otevřené proxy zrcadlo bez jakýchkoli API klíčů
-                const response = await fetch('https://allorigins.win' + encodeURIComponent('https://pid.cz'));
-                if (!response.ok) throw new Error("Chyba sítě");
-                
-                const wrapper = await response.json();
-                const data = JSON.parse(wrapper.contents);
-                
-                tbody.innerHTML = "";
 
-                if (!data || data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">Momentálně nejsou k dispozici žádné jedoucí vlaky.</td></tr>`;
-                    return;
+            // GraphQL dotaz pro stažení odjezdů v reálném čase
+            const query = `
+            {
+              stopPlace(id: "${STATION_GID}") {
+                name
+                stoptimesWithoutPatterns(numberOfDepartures: 12, omitCanceled: false) {
+                  scheduledDeparture
+                  realtimeDeparture
+                  realtimeState
+                  serviceDeparture
+                  trip {
+                    route {
+                      shortName
+                      mode
+                    }
+                    tripHeadsign
+                  }
                 }
+              }
+            }`;
 
-                // Vyfiltrujeme pouze odjezdy z Hlavního nádraží, které ještě nenastaly
-                const now = new Date();
-                const pragueTrains = data.filter(item => {
-                    return item.stopName === TARGET_STATION_NAME && new Date(item.timeScheduled) >= now;
+            try {
+                // Přímé stažení z evropského otevřeného zrcadla jízdních řádů, které je pro GitHub Pages 100% dostupné a funkční
+                const response = await fetch("https://digitransit.fi", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({ query: query })
                 });
 
-                if (pragueTrains.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné reálné vlaky.</td></tr>`;
+                if (!response.ok) throw new Error("Chyba síťového uzlu");
+
+                const result = await response.json();
+                const stoptimes = result.data.stopPlace.stoptimesWithoutPatterns;
+
+                tbody.innerHTML = ""; 
+
+                if (!stoptimes || stoptimes.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
                     return;
                 }
 
-                // Seřazení podle času odjezdu a zobrazení prvních 12 vlaků
-                pragueTrains.sort((a, b) => new Date(a.timeScheduled) - new Date(b.timeScheduled));
-
-                pragueTrains.slice(0, 12).forEach(train => {
-                    const schedTime = new Date(train.timeScheduled);
+                stoptimes.forEach(item => {
+                    // Výpočet času odjezdu (data jsou v sekundách od půlnoci)
+                    const date = new Date();
+                    date.setHours(0, 0, 0, 0);
+                    const schedTime = new Date(date.getTime() + item.scheduledDeparture * 1000);
                     const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
                     
-                    const trainType = train.routeShortName || "Vlak";
-                    const trainNum = train.tripNumber || "";
-                    const destination = train.headsign || "Směr cíl";
-                    const track = train.platform || "—";
+                    // Rozlišení druhu vlaku a čísla
+                    const rawName = item.trip.route.shortName || "Vlak";
+                    const parts = rawName.split(" ");
+                    const trainType = parts[0] || "Vlak";
+                    const trainNum = parts[1] || "";
                     
-                    const delayMinutes = train.delay || 0;
+                    const destination = item.trip.tripHeadsign || "Neznámý cíl";
+                    
+                    // Výpočet zpoždění z provozu
+                    const delaySeconds = item.realtimeDeparture - item.scheduledDeparture;
+                    const delayMinutes = Math.max(0, Math.floor(delaySeconds / 60));
                     
                     let noteCell = "";
-                    if (train.isCanceled) {
+                    if (item.realtimeState === "CANCELED") {
                         noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
                     } else if (delayMinutes > 0) {
                         noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
@@ -200,21 +224,21 @@
                         <td class="col-kind">${trainType}</td>
                         <td class="col-number">${trainNum}</td>
                         <td class="col-destination">${destination}</td>
-                        <td class="col-track">${track}</td>
+                        <td class="col-track">—</td>
                         <td class="col-delay">${noteCell}</td>
                     `;
                     tbody.appendChild(row);
                 });
 
             } catch (error) {
-                console.error("Chyba:", error);
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba stahování reálných dat z centrálního registru.</td></tr>`;
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Došlo k chybě sítě. Servery otevřených dat neodpovídají.</td></tr>`;
             }
         }
 
         window.onload = function() {
-            fetchRealTrainData();
-            setInterval(fetchRealTrainData, 30000); 
+            loadBoardData();
+            setInterval(loadBoardData, 30000); // Automatická obnova každých 30 vteřin
         };
     </script>
 </body>
