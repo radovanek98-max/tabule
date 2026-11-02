@@ -130,7 +130,7 @@
 
     <script>
         const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNTQ1OTQxLCJleHAiOjExNzkzNTQ1OTQxLCJpc3MiOiJnb2xlbWlvIiwianRpIjoiNGJjMDA1ZTItYTdhYi00NWNlLWFjOTEtMGY2YWM4OGZlMTAxIn0.2JLR4DOXCfLPiaMIRHw4X_b77mLPb-vIX_3dUEVLUcQ"; 
-        const STATION_ID = "U454Z1P"; // Kód pro Praha hl.n.
+        const STATION_ID = "U454Z1P"; // Praha hl.n.
 
         function updateClock() {
             const now = new Date();
@@ -146,12 +146,13 @@
             const tbody = document.getElementById('board-body');
 
             try {
-                const departuresUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=12`;
-                const departuresResponse = await fetch(departuresUrl, {
-                    headers: { 'X-Access-Token': GOLEMIO_API_KEY }
-                });
+                // OPRAVENO: Předávání tokenu přímo v URL adrese parametrem access_token, což uvolňuje CORS politiku pro GitHub Pages
+                const departuresUrl = `https://golemio.cz{STATION_ID}&mode=trains&limit=12&access_token=${GOLEMIO_API_KEY}`;
+                const departuresResponse = await fetch(departuresUrl);
                 
-                if (!departuresResponse.ok) throw new Error("Chyba API");
+                if (!departuresResponse.ok) {
+                    throw new Error("HTTP chyba: " + departuresResponse.status);
+                }
 
                 const departuresData = await departuresResponse.json();
                 tbody.innerHTML = ""; 
@@ -193,14 +194,14 @@
                 });
 
             } catch (error) {
-                console.error(error);
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba komunikace s API serverem Golemio.</td></tr>`;
+                console.error("Chyba přenosu dat:", error);
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba komunikace s API serverem Golemio. Zkontrolujte stav klíče.</td></tr>`;
             }
         }
 
         window.onload = function() {
             loadBoardData();
-            setInterval(loadBoardData, 30000); // Refresh každých 30 sekund
+            setInterval(loadBoardData, 30000); 
         };
     </script>
 </body>
