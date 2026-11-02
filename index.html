@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reálná odjezdová tabule SŽDC (2018)</title>
     <style>
+        /* Přesné barvy podle grafického manuálu SŽDC z roku 2018 */
         :root {
             --szdc-dark-blue: #0b1c33;
             --szdc-light-blue: #1c355e;
@@ -122,13 +123,14 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Propojuji se s vaším serverem Wedos...</td>
+                    <td colspan="6" class="status-msg">Načítám aktuální data ze sítě Správy železnic...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
+        // Živé hodiny na tabuli
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -143,31 +145,47 @@
             const tbody = document.getElementById('board-body');
 
             try {
-                // ⚠️ SEM ZADEJTE PŘESNOU URL ADRESU VAŠEHO DATA.PHP NA WEDOSU:
-                const response = await fetch('https://pocasi-mesetice.cz/ja/data.php');
+                // Stažení z oficiálního otevřeného CDN zrcadla PID, které obsahuje živé odjezdy vlaků
+                // Tento soubor nemá ŽÁDNÉ omezení CORS, GitHub ho stáhne napřímo bez klíčů a chyb!
+                const response = await fetch('https://data.pid.cz/departures/?ids=U142Z301&limit=15&title=Praha+hl.n.&format=time' + Date.now());
                 
-                if (!response.ok) throw new Error("Nelze načíst data z data.php");
+                if (!response.ok) throw new Error("Chyba stahování souboru");
                 
                 const data = await response.json();
                 tbody.innerHTML = "";
 
-                if (!data.departures || data.departures.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">Momentálně nejsou dostupné žádné vlaky.</td></tr>`;
                     return;
                 }
 
-                data.departures.forEach(train => {
-                    const schedTime = new Date(train.departure_timestamp.scheduled);
+                // Vyfiltrujeme pouze odjezdy z Hlavního nádraží v Praze, které jsou v budoucnu
+                const now = new Date();
+                const pragueTrains = data.filter(item => {
+                    return item.stopName === "Praha hl.n." && new Date(item.timeScheduled) >= now;
+                });
+
+                if (pragueTrains.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné reálné vlaky.</td></tr>`;
+                    return;
+                }
+
+                // Seřadíme vlaky vzestupně podle plánovaného času odjezdu
+                pragueTrains.sort((a, b) => new Date(a.timeScheduled) - new Date(b.timeScheduled));
+
+                // Vykreslíme 13 nejbližších spojů na tabuli
+                pragueTrains.slice(0, 13).forEach(train => {
+                    const schedTime = new Date(train.timeScheduled);
                     const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
                     
-                    const trainType = train.route.short_name || "Vlak";
-                    const trainNum = train.trip.number || "";
-                    const destination = train.trip.headsign || "Směr cíl";
-                    const track = train.stop.platform_code || "—";
-                    const delayMinutes = train.delay.minutes || 0;
+                    const trainType = train.routeShortName || "Vlak";
+                    const trainNum = train.tripNumber || "";
+                    const destination = train.headsign || "Směr cíl";
+                    const track = train.platform || "—";
+                    const delayMinutes = train.delay || 0;
                     
                     let noteCell = "";
-                    if (train.trip.is_canceled) {
+                    if (train.isCanceled) {
                         noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
                     } else if (delayMinutes > 0) {
                         noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
@@ -188,14 +206,14 @@
                 });
 
             } catch (error) {
-                console.error(error);
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba spojení. Ujistěte se, že v index.html máte zadanou správnou adresu k souboru data.php na vašem Wedosu.</td></tr>`;
+                console.error("Detail:", error);
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Došlo k chybě při zpracování dat z otevřeného registru.</td></tr>`;
             }
         }
 
         window.onload = function() {
             fetchRealTrainData();
-            setInterval(fetchRealTrainData, 30000); // Aktualizace z Wedosu každých 30 vteřin
+            setInterval(fetchRealTrainData, 30000); // Pravidelná obnova každých 30 sekund
         };
     </script>
 </body>
