@@ -122,20 +122,13 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Načítám data přímo z api.golemio.cz...</td>
+                    <td colspan="6" class="status-msg">Načítám data z lokálního serveru...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        // Definice parametrů přesně podle zadání
-        const BASE_URL = 'https://api.golemio.cz';
-        const endpoint = '?names=Praha%20hl.n.&limit=15';
-        const url = BASE_URL + endpoint;
-
-        const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4";
-
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -146,82 +139,69 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Globální funkce pro zpracování dat
-        window.golemioCallback = function(data) {
-            const tbody = document.getElementById('board-body');
-            tbody.innerHTML = "";
-
-            if (!data || !data.departures || data.departures.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
-                return;
-            }
-
-            data.departures.forEach(train => {
-                const schedTime = new Date(train.departure_timestamp.scheduled);
-                const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
-                
-                const trainType = train.route.short_name || "Vlak";
-                const trainNum = train.trip.number || "";
-                const destination = train.trip.headsign || "Směr cíl";
-                const track = train.stop.platform_code || "—";
-                const delayMinutes = train.delay.minutes || 0;
-                
-                let noteCell = "";
-                if (train.trip.is_canceled) {
-                    noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
-                } else if (delayMinutes > 0) {
-                    noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
-                } else {
-                    noteCell = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
-                }
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="col-time">${timeString}</td>
-                    <td class="col-kind">${trainType}</td>
-                    <td class="col-number">${trainNum}</td>
-                    <td class="col-destination">${destination}</td>
-                    <td class="col-track">${track}</td>
-                    <td class="col-delay">${noteCell}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        };
-
         async function fetchRealTrainData() {
             const tbody = document.getElementById('board-body');
 
             try {
-                // Přímý fetch bez proxy
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'X-Access-Token': GOLEMIO_API_KEY,
-                        'Accept': 'application/json'
+                // Voláme lokální soubor na Wedosu, který data bezpečně zprostředkuje napřímo z Golemia
+                const response = await fetch('data.php');
+                
+                if (!response.ok) throw new Error("Chyba čtení data.php");
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">${data.error}</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = "";
+
+                if (!data.departures || data.departures.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
+                    return;
+                }
+
+                data.departures.forEach(train => {
+                    const schedTime = new Date(train.departure_timestamp.scheduled);
+                    const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
+                    
+                    const trainType = train.route.short_name || "Vlak";
+                    const trainNum = train.trip.number || "";
+                    const destination = train.trip.headsign || "Směr cíl";
+                    const track = train.stop.platform_code || "—";
+                    const delayMinutes = train.delay.minutes || 0;
+                    
+                    let noteCell = "";
+                    if (train.trip.is_canceled) {
+                        noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
+                    } else if (delayMinutes > 0) {
+                        noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
+                    } else {
+                        noteCell = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
                     }
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="col-time">${timeString}</td>
+                        <td class="col-kind">${trainType}</td>
+                        <td class="col-number">${trainNum}</td>
+                        <td class="col-destination">${destination}</td>
+                        <td class="col-track">${track}</td>
+                        <td class="col-delay">${noteCell}</td>
+                    `;
+                    tbody.appendChild(row);
                 });
 
-                if (!response.ok) throw new Error("CORS restrikce");
-
-                const data = await response.json();
-                window.golemioCallback(data);
-
             } catch (error) {
-                // Oficiální CDN zrcadlo datové platformy Golemio (data.pid.cz), imunní vůči CORS
-                const script = document.createElement('script');
-                script.src = `https://pid.cz{Date.now()}`;
-                
-                const oldScript = document.getElementById('golemio-script');
-                if (oldScript) oldScript.remove();
-                
-                script.id = 'golemio-script';
-                document.body.appendChild(script);
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Chyba komunikace s lokálním PHP skriptem. Ověřte přítomnost souboru data.php.</td></tr>`;
             }
         }
 
         window.onload = function() {
             fetchRealTrainData();
-            setInterval(fetchRealTrainData, 30000); // Aktualizace každých 30 vteřin
+            setInterval(fetchRealTrainData, 30000); // Automatický refresh každých 30 vteřin
         };
     </script>
 </body>
