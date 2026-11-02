@@ -3,185 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odjezdová tabule - Praha hl.n.</title>
+    <title>Reálná odjezdová tabule SŽDC (2018)</title>
     <style>
-        /* Stylizace do vzhledu reálné nádražní tabule */
+        :root {
+            --szdc-dark-blue: #0b1c33;
+            --szdc-light-blue: #1c355e;
+            --szdc-yellow: #ffcc00;
+            --szdc-orange: #ff6600;
+            --szdc-white: #ffffff;
+            --szdc-gray: #a0aab5;
+        }
+
         body {
-            background-color: #0c0c0c;
-            color: #ff9900; /* Typická oranžová barva informačních panelů */
-            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #000;
+            color: var(--szdc-white);
+            font-family: 'Arial Target', 'Ubuntu', 'Segoe UI', sans-serif;
             margin: 0;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .board-container {
+            background-color: var(--szdc-dark-blue);
+            width: 100%;
             max-width: 1200px;
-            margin: 0 auto;
-            border: 3px solid #333;
-            background-color: #111;
-            padding: 10px;
-            box-shadow: 0 0 20px rgba(255, 153, 0, 0.2);
+            border: 4px solid #222;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            box-sizing: border-box;
         }
 
-        h1 {
-            text-align: center;
-            color: #fff;
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background-color: var(--szdc-light-blue);
+            border-bottom: 3px solid var(--szdc-yellow);
+        }
+
+        .station-name {
+            font-size: 28px;
+            font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            font-size: 24px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
+            letter-spacing: 1px;
         }
 
-        table {
+        .current-time {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--szdc-yellow);
+        }
+
+        .departure-table {
             width: 100%;
             border-collapse: collapse;
-            text-align: left;
+            font-size: 18px;
         }
 
-        th {
-            color: #888;
+        .departure-table th {
+            background-color: var(--szdc-light-blue);
+            color: var(--szdc-gray);
+            text-align: left;
+            padding: 10px 15px;
             font-size: 14px;
             text-transform: uppercase;
-            padding: 10px;
-            border-bottom: 2px solid #333;
         }
 
-        td {
-            padding: 12px 10px;
-            font-size: 18px;
-            font-weight: bold;
-            border-bottom: 1px solid #222;
+        .departure-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: middle;
         }
 
-        /* Barevné rozlišení důležitých prvků */
-        .time { color: #ffbc42; }
-        .line { 
-            color: #fff; 
-            background-color: #333; 
-            padding: 2px 6px; 
-            border-radius: 3px;
+        .col-time { color: var(--szdc-yellow); font-weight: bold; width: 8%; }
+        .col-kind { color: var(--szdc-white); font-weight: bold; width: 8%; }
+        .col-number { color: var(--szdc-white); width: 8%; }
+        .col-destination { color: var(--szdc-white); font-weight: bold; font-size: 20px; width: 35%; }
+        .col-track { color: var(--szdc-yellow); text-align: center; font-weight: bold; font-size: 20px; width: 8%; }
+        .col-delay { color: var(--szdc-orange); font-weight: bold; text-align: right; width: 15%; }
+
+        .blink {
+            animation: blinker 1.5s linear infinite;
         }
-        .delay { color: #ff3333; font-size: 14px; margin-left: 5px; }
-        .platform { color: #00ffcc; text-align: center; }
-        
-        .loading {
+
+        @keyframes blinker {
+            50% { opacity: 0.2; }
+        }
+
+        .status-msg {
+            padding: 30px;
             text-align: center;
-            padding: 40px;
-            font-size: 20px;
-            animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.3; }
-            50% { opacity: 1; }
-            100% { opacity: 0.3; }
+            color: var(--szdc-gray);
+            font-style: italic;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
 
     <div class="board-container">
-        <h1>Praha hlavní nádraží — Odjezdy</h1>
-        
-        <table id="departure-table" style="display: none;">
+        <div class="board-header">
+            <div class="station-name">Praha hlavní nádraží</div>
+            <div class="current-time" id="live-clock">00:00:00</div>
+        </div>
+
+        <table class="departure-table">
             <thead>
                 <tr>
-                    <th style="width: 10%;">Čas</th>
-                    <th style="width: 12%;">Linka / Vlak</th>
-                    <th style="width: 50%;">Směr (Cíl)</th>
-                    <th style="width: 18%;">Poznámka</th>
-                    <th style="width: 10%; text-align: center;">Nást.</th>
+                    <th>Čas</th>
+                    <th>Druh</th>
+                    <th>Číslo</th>
+                    <th>Cílová stanice</th>
+                    <th style="text-align: center;">Kolej</th>
+                    <th style="text-align: right;">Poznámka</th>
                 </tr>
             </thead>
-            <tbody id="table-body">
-                <!-- Data se doplní dynamicky pomocí JS -->
+            <tbody id="board-body">
+                <tr>
+                    <td colspan="6" class="status-msg">Načítám odjezdy ze serveru Golemio...</td>
+                </tr>
             </tbody>
         </table>
-        
-        <div id="loading-msg" class="loading">NAČÍTÁM AKTUÁLNÍ ODJEZDY...</div>
     </div>
 
     <script>
-        // Konfigurace API Golemio
-        // Používáme parametr names pro vyhledání uzlu "Praha hl.n." a limit 15 spojů
-        const url = 'https://api.golemio.cz/v2/pid/departureboards';
-        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4';
+        // Nový platný API klíč
+        const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4";
 
-        async function nactiOdjezdy() {
+        // Základní adresa, která je pro všechna Golemio data stejná
+        const BASE_URL = 'https://api.golemio.cz';
+
+        // Konkrétní data, která zrovna chcete (tady odjezdy)
+        const endpoint = '/v2/pid/departureboards?names=Praha%20hl.n.&limit=15';
+
+        // Prohlížeči pak předáte obě části spojené dohromady:
+        const url = BASE_URL + endpoint;
+
+        // Živé digitální hodiny
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        async function fetchRealTrainData() {
+            const tbody = document.getElementById('board-body');
+            
+            // Obalení zadané 'url' do CORS proxy tunelu, aby ji prohlížeč nezablokoval
+            const proxyUrl = `https://corsproxy.io{encodeURIComponent(url)}`;
+
             try {
-                const response = await fetch(url, {
-                    method: 'GET',
+                const response = await fetch(proxyUrl, {
                     headers: {
-                        'X-Access-Token': apiKey,
+                        'X-Access-Token': GOLEMIO_API_KEY,
                         'Accept': 'application/json'
                     }
                 });
+                
+                if (!response.ok) throw new Error("Chyba odpovědi API: " + response.status);
+                
+                const data = await response.json();
+                tbody.innerHTML = "";
 
-                if (!response.ok) {
-                    throw new Error(`Chyba serveru: ${response.status}`);
+                if (!data.departures || data.departures.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="status-msg">V nejbližší době neodjíždí žádné vlaky.</td></tr>`;
+                    return;
                 }
 
-                const data = await response.json();
-                vykresliTabuli(data.departures);
-
-            } catch (error) {
-                document.getElementById('loading-msg').innerText = `CHYBA NAČÍTÁNÍ: ${error.message}`;
-                document.getElementById('loading-msg').style.color = '#ff3333';
-            }
-        }
-
-        function vykresliTabuli(spoje) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = ''; // Vyčištění tabulky
-
-            if (!spoje || spoje.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Žádné aktuální odjezdy nebyly nalezeny.</td></tr>';
-            } else {
-                spoje.forEach(spoj => {
-                    // 1. Zpracování času odjezdu (oříznutí na HH:MM)
-                    const planyCas = spoj.departure_timestamp.scheduled;
-                    const d = new Date(planyCas);
-                    const formatovanyCas = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
-                    // 2. Výpočet zpoždění
-                    let zpozdeniText = '';
-                    const zpozdeniMinuty = spoj.delay.minutes;
-                    if (zpozdeniMinuty > 0) {
-                        zpozdeniText = `<span class="delay">+${zpozdeniMinuty} min</span>`;
-                    } else if (zpozdeniMinuty === 0) {
-                        zpozdeniText = '<span>včas</span>';
+                data.departures.forEach(train => {
+                    const schedTime = new Date(train.departure_timestamp.scheduled);
+                    const timeString = `${String(schedTime.getHours()).padStart(2, '0')}:${String(schedTime.getMinutes()).padStart(2, '0')}`;
+                    
+                    const trainType = train.route.short_name || "Vlak";
+                    const trainNum = train.trip.number || "";
+                    const destination = train.trip.headsign || "Směr cíl";
+                    const track = train.stop.platform_code || "—";
+                    const delayMinutes = train.delay.minutes || 0;
+                    
+                    let noteCell = "";
+                    if (train.trip.is_canceled) {
+                        noteCell = `<span style="color:red; font-weight:bold;">VLAK ZRUŠEN</span>`;
+                    } else if (delayMinutes > 0) {
+                        noteCell = `<span class="blink">Zpoždění ${delayMinutes} min</span>`;
+                    } else {
+                        noteCell = `<span style="color:var(--szdc-gray); font-size:14px;">Pravidelný odjezd</span>`;
                     }
 
-                    // 3. Číslo linky / Vlaku
-                    const nazevLinky = spoj.route.short_name || spoj.trip.headsign || 'Vlak';
-                    
-                    // 4. Nástupiště (pokud je dostupné)
-                    const nastupiste = spoj.stop.platform_code || '-';
-
-                    // Vytvoření řádku tabulky
-                    const row = `
-                        <tr>
-                            <td class="time">${formatovanyCas}</td>
-                            <td><span class="line">${nazevLinky}</span></td>
-                            <td>${spoj.trip.headsign}</td>
-                            <td>${zpozdeniText}</td>
-                            <td class="platform">${nastupiste}</td>
-                        </tr>
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="col-time">${timeString}</td>
+                        <td class="col-kind">${trainType}</td>
+                        <td class="col-number">${trainNum}</td>
+                        <td class="col-destination">${destination}</td>
+                        <td class="col-track">${track}</td>
+                        <td class="col-delay">${noteCell}</td>
                     `;
-                    tbody.innerHTML += row;
+                    tbody.appendChild(row);
                 });
-            }
 
-            // Skrytí načítací hlášky a zobrazení hotové tabulky
-            document.getElementById('loading-msg').style.display = 'none';
-            document.getElementById('departure-table').style.display = 'table';
+            } catch (error) {
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Došlo k chybě stahování dat přes integrovanou URL.</td></tr>`;
+            }
         }
 
-        // Spuštění po načtení stránky a automatická aktualizace každých 30 sekund
-        nactiOdjezdy();
-        setInterval(nactiOdjezdy, 30000);
+        window.onload = function() {
+            fetchRealTrainData();
+            setInterval(fetchRealTrainData, 30000); // Obnova každých 30 vteřin
+        };
     </script>
 </body>
 </html>
