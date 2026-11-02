@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reálná odjezdová tabule SŽDC (2018)</title>
+    <title>Reálná odjezdová tabule SŽDC (2018) — Čisté Golemio</title>
     <style>
         :root {
             --szdc-dark-blue: #0b1c33;
@@ -122,26 +122,26 @@
             </thead>
             <tbody id="board-body">
                 <tr>
-                    <td colspan="6" class="status-msg">Přímé načítání odjezdů z api.golemio.cz...</td>
+                    <td colspan="6" class="status-msg">Přímé stahování dat z api.golemio.cz...</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        // Nový platný API klíč
+        // Váš nový platný klíč
         const GOLEMIO_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NjYzNCwiaWF0IjoxNzkzNjM5NTQ3LCJleHAiOjExNzkzNjM5NTQ3LCJpc3MiOiJnb2xlbWlvIiwianRpIjoiZTllNmM1OWMtYmM2Ni00MjFlLWFkMjgtYmQyMTMxYzIxZWQ1In0.Seb_KYy6z1YoHSiTRYs6eFKy5dvfyygk5vT48D8uXS4";
 
-        // Vaše specifikovaná základní adresa
+        // Přesně definovaná základní adresa
         const BASE_URL = 'https://golemio.cz';
 
-        // Parametry endpointu
+        // Konkrétní parametry pro odjezdy z Hlavního nádraží
         const endpoint = '?names=Praha%20hl.n.&limit=15';
 
-        // Výsledné přímé spojení
+        // Spojení adresy dohromady na přímý odkaz
         const url = BASE_URL + endpoint;
 
-        // Živé hodiny
+        // Živé digitální hodiny
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -156,7 +156,7 @@
             const tbody = document.getElementById('board-body');
 
             try {
-                // Čistý fetch směřovaný napřímo na servery Golemia bez jakékoliv proxy
+                // Čisté stahování napřímo z Golemia bez jakýchkoliv prostředníků
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -165,7 +165,7 @@
                     }
                 });
                 
-                if (!response.ok) throw new Error("Chyba serveru: " + response.status);
+                if (!response.ok) throw new Error("Chyba API serveru: " + response.status);
                 
                 const data = await response.json();
                 tbody.innerHTML = "";
@@ -208,13 +208,13 @@
 
             } catch (error) {
                 console.error(error);
-                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Prohlížeč zablokoval dotaz (CORS restrikce). Spusťte Chrome s vypnutým zabezpečením.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="status-msg" style="color:red;">Prohlížeč zablokoval dotaz (CORS restrikce). Povolte doménu vašeho webu v administraci Golemia (api.golemio.cz/api-keys).</td></tr>`;
             }
         }
 
         window.onload = function() {
             fetchRealTrainData();
-            setInterval(fetchRealTrainData, 30000); // Aktualizace každých 30 vteřin
+            setInterval(fetchRealTrainData, 30000); // Pravidelná přímá aktualizace každých 30 vteřin
         };
     </script>
 </body>
